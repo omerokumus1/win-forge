@@ -42,7 +42,7 @@ An interactive, verification-first **Windows 10 & Windows 11** system audit, cle
 - Enables Windows **Storage Sense** for ongoing automated cleanup.
 - Checks `C:\Windows\SoftwareDistribution\Download` for active `UsoSvc` locks before touching it so live Windows Updates are never corrupted.
 - Removes `C:\Windows.old`, `Update Cleanup`, and `Temporary Setup Files` using Windows' built-in Disk Cleanup (`cleanmgr.exe /sagerun:99`).
-- Supports relocating large folders/games to a secondary drive (`D:`) via `robocopy` + `mklink /J`.
+- Supports relocating large folders to a secondary drive (`D:`) with `robocopy` + `mklink /J`. It copies, verifies, and keeps the original as `.old` until you confirm the app works. For games, it points you to the launcher's own move feature instead.
 
 ### 3. Known-Folder-Safe OneDrive Disable
 - **Safety Guardrail:** Always checks `User Shell Folders` (`Desktop`, `Personal`, `My Pictures`) **before** touching `OneDrive`. If Known Folder Move redirected your folders into `OneDrive\`, it migrates local files and repoints Windows back to `C:\Users\<user>\Desktop`, `Documents`, and `Pictures` first.

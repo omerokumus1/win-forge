@@ -54,7 +54,7 @@ Use the exact verified commands and OS-specific branches in [playbooks.md](./ref
    - Enable **Storage Sense** (`StoragePolicy\01 = 1`).
    - Check `UsoSvc` / recent timestamps before touching `C:\Windows\SoftwareDistribution\Download`; if locked by an active Windows Update download, skip and advise cleaning after restart.
    - Clean `C:\Windows.old`, `Update Cleanup`, and `Temporary Setup Files` safely via `cleanmgr.exe /sagerun:99` (`VolumeCaches` `StateFlags0099 = 2`).
-   - Move large folders/games from `C:` to a secondary drive (`D:`) via `robocopy` + directory junction (`mklink /J`) when requested.
+   - Move large folders from `C:` to a secondary drive (`D:`) when requested: copy → verify → rename the source to `.old` → directory junction (`mklink /J`), and delete `.old` only after the user confirms the app works. For games, use the launcher's own move/reinstall instead of a junction.
 
 2. **OneDrive Full Disable (Known-Folder-Safe)**
    - **MANDATORY PRE-CHECK:** Inspect `HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders` (`Desktop`, `Personal`, `My Pictures`) **before** deleting `OneDrive`.

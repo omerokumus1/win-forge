@@ -41,11 +41,25 @@ foreach ($key in @("Previous Installations", "Update Cleanup", "Temporary Setup 
 Start-Process -FilePath "cleanmgr.exe" -ArgumentList "/sagerun:99" -PassThru -Wait
 ```
 
-### Move Large Folder to Secondary Drive via Junction (Elevated / Admin if protected)
+### Move Large Folder to Secondary Drive via Junction (Elevated only if the folder is protected)
+> **Games:** use the launcher's own move instead of a junction: Steam → Settings → Storage → select the library → ⋯ → Move. For launchers without a move feature (Epic, Riot Client, EA, Ubisoft), reinstall to the target drive, or install to the target path and let the launcher verify existing files. Kernel anti-cheat (Vanguard, EasyAntiCheat, BattlEye) and launcher updates may re-verify or break behind a junction.
+
+Copy first, verify, and keep the original until the user confirms the app works. Never use `/MOVE`: it deletes each source file as it is copied, so one locked file leaves the data split between drives and `mklink /J` then fails because the source still exists. Never use `/COPYALL`: copying auditing info needs the *Manage Auditing* right, and robocopy exits with code 16 without copying anything when it runs non-elevated.
 ```powershell
-robocopy "C:\SourceFolder" "D:\TargetFolder" /E /COPYALL /MOVE /R:1 /W:1
-cmd /c mklink /J "C:\SourceFolder" "D:\TargetFolder"
+$src = "C:\SourceFolder"; $dst = "D:\TargetFolder"   # close every app using $src first; $dst must not exist or be empty
+if (Get-ChildItem -LiteralPath $src -Recurse -Force -Attributes ReparsePoint -ErrorAction SilentlyContinue) {
+    throw "Source contains junctions/symlinks, which robocopy /XJ will not copy; handle them manually first"
+}
+robocopy $src $dst /E /COPY:DAT /DCOPY:DAT /XJ /R:1 /W:1 /NP /NFL /NDL
+if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE); source is untouched, remove $dst and retry after closing apps" }
+robocopy $src $dst /E /XJ /L /NJH /NJS /NFL /NDL | Out-Null   # dry-run compare: exit 0 = in sync
+if ($LASTEXITCODE -ne 0) { throw "Verification failed (robocopy /L exit $LASTEXITCODE); source is untouched" }
+$leaf = Split-Path $src -Leaf
+Rename-Item -LiteralPath $src -NewName "$leaf.old"
+cmd /c mklink /J "$src" "$dst"
+if ($LASTEXITCODE -ne 0) { Rename-Item -LiteralPath "$src.old" -NewName $leaf; throw "mklink failed; original restored" }
 ```
+Have the user launch the app. Only after they confirm it works, delete the backup: `Remove-Item -LiteralPath "$src.old" -Recurse -Force`. To roll back instead, run `cmd /c rmdir "$src"` (this removes only the junction), then `Rename-Item -LiteralPath "$src.old" -NewName $leaf`.
 
 ---
 
