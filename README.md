@@ -66,7 +66,7 @@ An interactive, verification-first **Windows 10 & Windows 11** system audit, cle
 - Audits Display Language vs. Regional Format (`HKCU:\Control Panel\International`) vs. System Locale before UI language switches.
 
 ### 7. Driver Audit & Update
-- Inventories signed PnP drivers (`Win32_PnPSignedDriver`) and queries Windows Update (`Microsoft.Update.Session` `Type='Driver'`).
+- Inventories signed PnP drivers (`Win32_PnPSignedDriver`) and queries Windows Update (`Microsoft.Update.Session` `Type='Driver'`), tagging pending drivers whose hardware ID matches no connected device (`[NOT PRESENT]`, e.g., a driver for a removed GPU) so they are never installed.
 - Cross-checks OEM vs. vendor releases, validates Authenticode signatures (`Get-AuthenticodeSignature`) before installing, handles silent install quirks (e.g., Intel Graphics DCH `-s` vs. `ExitCode 1007`), and removes temporary installers afterward.
 
 ---

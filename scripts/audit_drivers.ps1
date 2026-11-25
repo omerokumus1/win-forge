@@ -31,8 +31,24 @@ try {
     $searcher = $session.CreateUpdateSearcher()
     $res = $searcher.Search("IsInstalled=0 and Type='Driver'")
     Write-Output "Pending Windows Update Drivers: $($res.Updates.Count)"
+    # Windows Update also offers drivers for removed hardware still recorded in PnP (e.g. an old GPU).
+    # Win32_PnPEntity lists only present devices, so an update whose hardware ID matches none of them
+    # targets hardware that is no longer installed.
+    $presentIds = @{}
+    Get-CimInstance Win32_PnPEntity | ForEach-Object {
+        foreach ($id in @($_.HardwareID) + @($_.CompatibleID)) { if ($id) { $presentIds[$id.ToUpperInvariant()] = $true } }
+    }
+    $nonPresent = @(Get-PnpDevice | Where-Object { -not $_.Present })
     foreach ($u in $res.Updates) {
-        Write-Output "- $($u.Title)"
+        $hwid = "$($u.DriverHardwareID)"
+        if ($hwid -and -not $presentIds.ContainsKey($hwid.ToUpperInvariant())) {
+            Write-Output "- $($u.Title) [NOT PRESENT: $hwid matches no connected device (removed hardware) - do not install]"
+            $nonPresent | Where-Object { (@($_.HardwareID) + @($_.CompatibleID)) -contains $hwid } | ForEach-Object {
+                Write-Output "    Stale device record: $($_.FriendlyName) | InstanceId: $($_.InstanceId)"
+            }
+        } else {
+            Write-Output "- $($u.Title)"
+        }
     }
 } catch {
     Write-Output "Windows Update driver search failed: $_"

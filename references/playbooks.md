@@ -161,6 +161,17 @@ $p = Start-Process -FilePath $installerPath -ArgumentList "-s" -PassThru -Wait
 ```
 Delete the temporary installer after verifying `Win32_VideoController` / `Win32_PnPSignedDriver` reports the updated `DriverVersion` and `Status = OK`.
 
+### Remove Stale (Non-Present) Device Records (Elevated)
+When `audit_drivers.ps1` tags a pending driver `[NOT PRESENT]`, Windows Update keeps offering it because the removed device is still recorded in PnP (DDU removes the driver, not the record). List every non-present device from the same vendor first; a GPU usually leaves a sibling HD Audio function (e.g., NVIDIA `PCI\VEN_10DE&DEV_2803` display + `PCI\VEN_10DE&DEV_22BD` audio):
+```powershell
+Get-PnpDevice | Where-Object { -not $_.Present -and $_.InstanceId -like 'PCI\VEN_10DE*' } |
+    Select-Object Class, FriendlyName, InstanceId
+
+# After user approval, per InstanceId (pnputil /remove-device requires Windows 10 2004 / build 19041+):
+pnputil /remove-device "<InstanceId>"
+```
+Verify: the `InstanceId` no longer appears in `Get-PnpDevice`, and re-running `audit_drivers.ps1` no longer lists the `[NOT PRESENT]` driver. On older builds, use Device Manager → View → Show hidden devices → Uninstall device.
+
 ---
 
 ## 8. Process, Service & Gaming Reference (What It Does & Removal Impact)

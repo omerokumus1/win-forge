@@ -79,6 +79,7 @@ Use the exact verified commands and OS-specific branches in [playbooks.md](./ref
 
 6. **Driver Audit & Update**
    - Compare `Win32_PnPSignedDriver` versions and `Microsoft.Update.Session` (`IsInstalled=0 and Type='Driver'`) against OEM/vendor releases.
+   - Never offer or install a pending driver tagged `[NOT PRESENT]` by `audit_drivers.ps1`: its hardware ID matches no connected device (e.g., an NVIDIA driver offered for a GPU that was replaced by an AMD card—these records survive DDU). Offer instead to remove the stale device record listed under it (`pnputil /remove-device`, see [playbooks.md](./references/playbooks.md) §7) so Windows Update stops offering the driver.
    - Verify `Get-AuthenticodeSignature` (`Status -eq 'Valid'`) on any downloaded installer before running.
    - For Intel Graphics DCH packages (`gfx_win_101*.exe`), use `-s` only (extra flags like `--overwrite`/`--report` can fail with `ExitCode 1007` / `ERROR_BAD_COMMAND`). Delete temporary installers after verification.
 
