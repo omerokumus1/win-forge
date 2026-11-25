@@ -53,6 +53,7 @@ Use the exact verified commands and OS-specific branches in [playbooks.md](./ref
    - Clear User `Temp` (skip locked files), `CrashDumps`, `.nuget\packages`, Chrome/Edge `Cache` folders only (never cookies/logins), and Recycle Bin.
    - Enable **Storage Sense** (`StoragePolicy\01 = 1`).
    - Check `UsoSvc` / recent timestamps before touching `C:\Windows\SoftwareDistribution\Download`; if locked by an active Windows Update download, skip and advise cleaning after restart.
+   - If `audit_disk.ps1` prints a pagefile `[ADVISORY]` (fixed size far above peak use), offer switching to system-managed (`🟡 Conditional`, elevated, reboot required) per [playbooks.md](./references/playbooks.md) §6.
    - Clean `C:\Windows.old`, `Update Cleanup`, and `Temporary Setup Files` safely via `cleanmgr.exe /sagerun:99` (`VolumeCaches` `StateFlags0099 = 2`).
    - Move large folders/games from `C:` to a secondary drive (`D:`) via `robocopy` + directory junction (`mklink /J`) when requested.
 

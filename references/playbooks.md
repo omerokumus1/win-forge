@@ -143,6 +143,12 @@ if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process e
 ## 6. Power, Dev/Gaming & Locale Checks
 
 - **Hibernate Timeout Check:** `powercfg /query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE` (AC `0` = Never, DC in seconds). Only run `powercfg /h off` if the user confirms they do not need Hibernate or Fast Startup.
+- **Pagefile → System Managed (Elevated, reboot required):** Only when `audit_disk.ps1` prints the pagefile `[ADVISORY]` and the user confirms the fixed size was not set on purpose.
+  ```powershell
+  $cs = Get-CimInstance Win32_ComputerSystem
+  Set-CimInstance -InputObject $cs -Property @{ AutomaticManagedPagefile = $true }
+  ```
+  Verify before rebooting: `(Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management').PagingFiles` is `?:\pagefile.sys` and `Get-CimInstance Win32_PageFileSetting` returns nothing. `pagefile.sys` shrinks after the reboot; confirm in the Phase 4 re-scan.
 - **Ultimate Performance Power Plan (Elevated):**
   `powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61` then `powercfg /setactive <GUID>`.
 - **Regional Format Check:** Check `(Get-ItemProperty "HKCU:\Control Panel\International").LocaleName` and `Get-WinSystemLocale` before changing Windows Display Language; set `Set-Culture <locale>` if Regional Format needs to stay pinned after switching UI language.

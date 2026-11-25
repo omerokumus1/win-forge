@@ -58,9 +58,17 @@ if ($sdRecent) {
 $hiber = Get-Item "C:\hiberfil.sys" -Force
 if ($hiber) { Write-Output "hiberfil.sys: $([math]::Round($hiber.Length / 1GB, 2)) GB" }
 
-$pf = Get-CimInstance Win32_PageFileUsage
-if ($pf -and $pf.AllocatedBaseSize -ge 8192) {
-    Write-Output "pagefile.sys: Allocated $([math]::Round($pf.AllocatedBaseSize / 1024, 2)) GB | CurrentUsage $([math]::Round($pf.CurrentUsage / 1024, 2)) GB | PeakUsage $([math]::Round($pf.PeakUsage / 1024, 2)) GB"
+$autoPf = (Get-CimInstance Win32_ComputerSystem).AutomaticManagedPagefile
+$pfSettings = @(Get-CimInstance Win32_PageFileSetting)
+$bootHours = [math]::Round(((Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalHours, 1)
+foreach ($pf in @(Get-CimInstance Win32_PageFileUsage)) {
+    $setting = $pfSettings | Where-Object { $_.Name -eq $pf.Name } | Select-Object -First 1
+    $fixed = (-not $autoPf) -and $setting -and $setting.MaximumSize -gt 0
+    $mode = if ($autoPf) { "System managed" } elseif ($fixed) { "Manual $($setting.InitialSize)-$($setting.MaximumSize) MB" } else { "Manual (system-managed size)" }
+    Write-Output "$($pf.Name): Allocated $([math]::Round($pf.AllocatedBaseSize / 1024, 2)) GB | CurrentUsage $([math]::Round($pf.CurrentUsage / 1024, 2)) GB | PeakUsage $([math]::Round($pf.PeakUsage / 1024, 2)) GB (since boot, $bootHours h) | Mode: $mode"
+    if ($fixed -and $pf.AllocatedBaseSize -ge 4096 -and $pf.AllocatedBaseSize -ge 4 * [math]::Max($pf.PeakUsage, 1)) {
+        Write-Output "[ADVISORY] Fixed pagefile is $([math]::Round($pf.AllocatedBaseSize / 1024, 1)) GB but peak use since boot is $([math]::Round($pf.PeakUsage / 1024, 2)) GB; switching to system-managed (reboot required) could reclaim most of it. Keep it if the size is intentional (memory-heavy workloads, full crash dumps)."
+    }
 }
 
 $rbItems = @((New-Object -ComObject Shell.Application).NameSpace(0x0a).Items())
