@@ -16,7 +16,26 @@ Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File
 
 ### User-Level Safe Clean (Non-Admin)
 ```powershell
-Get-ChildItem $env:TEMP -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+# Temp: delete only files untouched for 24 h, then directories left empty. Newer files may belong to running
+# installers, updaters, or builds (a folder's own timestamp does not change when files deep inside it are
+# written, so the check is per file). Junctions/symlinks are removed as links, never entered.
+$cutoff = (Get-Date).AddHours(-24)
+function Remove-StaleTemp($dir) {
+    foreach ($item in Get-ChildItem -LiteralPath $dir -Force -ErrorAction SilentlyContinue) {
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+            if ($item.LastWriteTime -lt $cutoff) { try { $item.Delete() } catch {} }
+        } elseif ($item.PSIsContainer) {
+            Remove-StaleTemp $item.FullName
+            if ($item.LastWriteTime -lt $cutoff -and -not (Get-ChildItem -LiteralPath $item.FullName -Force -ErrorAction SilentlyContinue)) {
+                Remove-Item -LiteralPath $item.FullName -Force -ErrorAction SilentlyContinue
+            }
+        } elseif ($item.LastWriteTime -lt $cutoff) {
+            Remove-Item -LiteralPath $item.FullName -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+Remove-StaleTemp $env:TEMP
+
 Get-ChildItem "$env:LOCALAPPDATA\CrashDumps" -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem "$env:USERPROFILE\.nuget\packages" -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache" -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue

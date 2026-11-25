@@ -50,7 +50,7 @@ Before recommending any action, verify the OS version (`Build >= 22000` = Window
 Use the exact verified commands and OS-specific branches in [playbooks.md](./references/playbooks.md) for each approved item:
 
 1. **Disk & Cache Cleanup**
-   - Clear User `Temp` (skip locked files), `CrashDumps`, `.nuget\packages`, Chrome/Edge `Cache` folders only (never cookies/logins), and Recycle Bin.
+   - Clear User `Temp` (only files untouched for 24 h, so running installers/updaters/builds keep their working files; links are never followed), `CrashDumps`, `.nuget\packages`, Chrome/Edge `Cache` folders only (never cookies/logins), and Recycle Bin.
    - Enable **Storage Sense** (`StoragePolicy\01 = 1`).
    - Check `UsoSvc` / recent timestamps before touching `C:\Windows\SoftwareDistribution\Download`; if locked by an active Windows Update download, skip and advise cleaning after restart.
    - Clean `C:\Windows.old`, `Update Cleanup`, and `Temporary Setup Files` safely via `cleanmgr.exe /sagerun:99` (`VolumeCaches` `StateFlags0099 = 2`).
