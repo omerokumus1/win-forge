@@ -1,13 +1,66 @@
 $ErrorActionPreference = 'SilentlyContinue'
 
+# Sizes are measured as bytes actually allocated on disk. Logical sizes (robocopy /BYTES, Explorer "Size")
+# overstate sparse files (e.g. Android emulator / WSL disk images that report hundreds of GB while using a
+# few), NTFS-compressed files, and dehydrated cloud placeholders. Directory reparse points (junctions and
+# symlinks) are skipped, matching the previous robocopy /XJ behavior.
+if (-not ('WinForgeDiskSize' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices;
+
+public static class WinForgeDiskSize {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern uint GetCompressedFileSizeW(string lpFileName, out uint lpFileSizeHigh);
+
+    const FileAttributes RecallOnOpen = (FileAttributes)0x40000;
+    const FileAttributes RecallOnDataAccess = (FileAttributes)0x400000;
+    const FileAttributes NotLocal = FileAttributes.Offline | RecallOnOpen | RecallOnDataAccess;
+    const FileAttributes Shrunk = FileAttributes.SparseFile | FileAttributes.Compressed;
+
+    // Returns { onDiskBytes, logicalBytes }.
+    public static long[] Measure(string path) {
+        string full = Path.GetFullPath(path);
+        if (!full.StartsWith(@"\\")) full = @"\\?\" + full;
+        long[] total = new long[2];
+        if (File.Exists(full)) { Add(new FileInfo(full), total); return total; }
+        Stack<DirectoryInfo> pending = new Stack<DirectoryInfo>();
+        pending.Push(new DirectoryInfo(full));
+        while (pending.Count > 0) {
+            FileSystemInfo[] entries;
+            try { entries = pending.Pop().GetFileSystemInfos(); } catch { continue; }
+            foreach (FileSystemInfo entry in entries) {
+                if ((entry.Attributes & FileAttributes.Directory) == 0) { Add((FileInfo)entry, total); }
+                else if ((entry.Attributes & FileAttributes.ReparsePoint) == 0) { pending.Push((DirectoryInfo)entry); }
+            }
+        }
+        return total;
+    }
+
+    static void Add(FileInfo file, long[] total) {
+        long logical = file.Length;
+        long onDisk = logical;
+        FileAttributes attrs = file.Attributes;
+        if ((attrs & NotLocal) != 0) {
+            // Cloud placeholder whose data is not local; querying it could trigger a download.
+            onDisk = 0;
+        } else if ((attrs & Shrunk) != 0) {
+            uint high;
+            uint low = GetCompressedFileSizeW(file.FullName, out high);
+            if (low != 0xFFFFFFFF || Marshal.GetLastWin32Error() == 0) onDisk = ((long)high << 32) | low;
+        }
+        total[0] += onDisk;
+        total[1] += logical;
+    }
+}
+'@
+}
+
 function Get-FolderSizeGB($path) {
     if (-not (Test-Path $path)) { return 0 }
-    $out = robocopy $path "NUL" /L /S /XJ /R:0 /W:0 /NFL /NDL /NJH /NC /NS /NP /BYTES 2>$null
-    $line = $out | Select-String '^\s*Bytes\s*:\s*(\d+)' | Select-Object -Last 1
-    if ($line -and $line.Matches[0].Groups[1].Value) {
-        return [math]::Round([double]$line.Matches[0].Groups[1].Value / 1GB, 2)
-    }
-    return 0
+    return [math]::Round([WinForgeDiskSize]::Measure($path)[0] / 1GB, 2)
 }
 
 Write-Output "=== DRIVE SUMMARY ==="
@@ -23,8 +76,15 @@ foreach ($d in $drives) {
     $root = "$($d.DeviceID)\"
     Write-Output "`n=== $root TOP-LEVEL FOLDERS & FILES (>= 0.1 GB, Junction-Safe) ==="
     Get-ChildItem $root -Force | Where-Object { -not $_.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) } | ForEach-Object {
-        $gb = if ($_.PSIsContainer) { Get-FolderSizeGB $_.FullName } else { [math]::Round($_.Length / 1GB, 2) }
-        [PSCustomObject]@{ Name = $_.Name; Type = if ($_.PSIsContainer) { "Dir" } else { "File" }; GB = $gb }
+        $size = [WinForgeDiskSize]::Measure($_.FullName)
+        $gb = [math]::Round($size[0] / 1GB, 2)
+        $logicalGb = [math]::Round($size[1] / 1GB, 2)
+        [PSCustomObject]@{
+            Name = $_.Name
+            Type = if ($_.PSIsContainer) { "Dir" } else { "File" }
+            GB   = $gb
+            Note = if ($logicalGb - $gb -ge 1) { "Logical size $logicalGb GB (sparse/compressed/cloud files)" } else { "" }
+        }
     } | Where-Object { $_.GB -ge 0.1 } | Sort-Object GB -Descending | Format-Table -AutoSize
 }
 

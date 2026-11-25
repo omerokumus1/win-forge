@@ -30,7 +30,7 @@ An interactive, step-by-step Windows 10 & Windows 11 optimization and cleanup sk
 ## Phase 1: Read-Only Discovery
 
 1. **Display the Fixed 5-Step Read-Only Analysis Plan (No Plan Designing Needed):** Open with the greeting (translated to the user's language), show this fixed 5-step plan, and immediately execute all three read-only audits without modifying anything:
-   - **Storage, Large Files & Caches:** Measure top-level drive usage (`robocopy /L /XJ`), `pagefile.sys` / `hiberfil.sys`, Recycle Bin, and cleanable dev/browser/system caches (`Temp`, `CrashDumps`, `.nuget`, `pip`, `npm`, `huggingface`, Chrome/Edge).
+   - **Storage, Large Files & Caches:** Measure top-level drive usage (on-disk bytes, junction-safe; a `Note` column flags sparse/compressed/cloud files whose logical size is much larger—never recommend deleting a folder based on its logical size), `pagefile.sys` / `hiberfil.sys`, Recycle Bin, and cleanable dev/browser/system caches (`Temp`, `CrashDumps`, `.nuget`, `pip`, `npm`, `huggingface`, Chrome/Edge).
    - **Bloatware & Installed Apps:** Inventory optional/vendor Store apps (`Get-AppxPackage`) and safety-critical Known Folders (`Desktop`, `Documents`, `Pictures` OneDrive redirection check).
    - **Background Processes, CPU & RAM:** Snapshot live CPU load/clock, total process count, top RAM & CPU consumers, and targeted Microsoft/Chrome/vendor/gaming processes.
    - **All 5 Startup Layers & Services:** Audit `HKCU`/`HKLM`/`WOW6432Node` `Run` (with `StartupApproved` flags), Startup folders, Store startup tasks, non-Windows & telemetry Scheduled Tasks, and 3rd-party `Automatic` services (flagging orphaned binaries and MSIX-protected services).

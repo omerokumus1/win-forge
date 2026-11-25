@@ -37,7 +37,7 @@ An interactive, verification-first **Windows 10 & Windows 11** system audit, cle
   5. Third-party `Automatic` Windows Services (flagging orphaned missing binaries and MSIX-protected Store services)
 
 ### 2. Junction-Safe Disk Audit & Cleanup
-- Measures directory sizes using `robocopy /L /XJ` so NTFS junctions never double-count files.
+- Measures directory sizes as bytes actually allocated on disk, skipping NTFS junctions/symlinks so nothing is double-counted, and flags folders whose logical size is inflated by sparse, compressed, or cloud-placeholder files (e.g., a 512 GB emulator `userdata.img` that uses ~1 GB).
 - Safely clears User `Temp` (e.g., `docker-scout`, stale installers), `CrashDumps`, `.nuget\packages`, Chrome/Edge `Cache` folders (without touching cookies, history, or logins), and the Recycle Bin.
 - Enables Windows **Storage Sense** for ongoing automated cleanup.
 - Checks `C:\Windows\SoftwareDistribution\Download` for active `UsoSvc` locks before touching it so live Windows Updates are never corrupted.
